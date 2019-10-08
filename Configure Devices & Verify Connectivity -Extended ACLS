@@ -1,0 +1,286 @@
+==============================================
+Configure Devices & Verify Connectivity -Extended ACLS
+==============================================
+
+--------------------------
+Switch 1
+--------------------------
+enable
+configure terminal
+hostname S1
+no ip domain-lookup
+enable password cisco
+banner motd #Unauthorized access strictly prohibited#
+
+line con 0
+password cisco
+login
+logging synchronous
+
+line vty 0 15
+password cisco
+login
+logging synchronous
+exit
+
+no vlan 2-999
+vlan 101
+name VLAN1
+
+int vlan 101
+ip add 192.168.10.11 255.255.255.0
+no shut
+exit
+ip default-gateway 192.168.10.1
+
+int f0/5
+desc CONNECTION TO ROUTER
+switchport access vlan 101
+switchport mode access
+
+int f0/6
+switchport access vlan 101
+switchport mode access
+
+---------------------------
+Switch 3
+---------------------------
+enable
+configure terminal
+hostname S3
+no ip domain-lookup
+enable password cisco
+banner motd #Unauthorized access strictly prohibited#
+
+line con 0
+password cisco
+login
+logging synchronous
+
+line vty 0 15
+password cisco
+login
+logging synchronous
+exit
+
+no vlan 2-999
+vlan 101
+name VLAN1
+
+int vlan 101
+ip add 192.168.30.11 255.255.255.0
+no shut
+exit
+ip default-gateway 192.168.30.1
+
+int f0/5
+desc CONNECTION TO ROUTER
+switchport access vlan 101
+switchport mode access
+
+int f0/18
+switchport access vlan 101
+switchport mode access
+
+---------------------------
+Router 1
+---------------------------
+en
+conf t
+enable password class
+hostname R1
+line vty 0 4
+password cisco
+logging synchronous 
+login
+line con 0
+password cisco
+login
+no ip domain-lookup
+banner motd #Unauthorized access is prohibited#
+
+int F0/1
+ip add 192.168.10.1 255.255.255.0
+no shut
+
+int s0/0
+ip add 10.1.1.1 255.255.255.252
+clock rate 128000
+no shut
+
+exit
+router OSPF 1
+network 192.168.10.0 0.0.0.255 AREA 0
+network 192.168.20.0 0.0.0.255 AREA 0
+network 10.1.1.0 0.0.0.3 AREA 0
+
+Passive-Interface F0/1
+
+
+intlo0
+ip add 192.168.20.1 255.255.255.0
+end
+
+
+show ip ospf neighbor
+
+Enable web access
+-------
+ip http server
+ip http authentication local
+username admin privilege 1 secret class
+
+ACL Config on R1
+-------------
+access-list 100 remark Allow Web & SSH Access
+access-list 100 permit tcp host 192.168.10.3 host 10.2.2.1 eq 22
+access-list 100 permit tcp any any eq 80
+
+Apply ACL on interface
+------------------------
+interface s0/0
+ip access-group 100 out
+
+Modify & Verify Extended ACL
+-------------------------------
+show access-lists
+
+ip access-list extended 100
+30 permit ip 192.168.10.0 0.0.0.255 192.168.30.0 0.0.0.255
+end
+
+show access-lists
+
+
+---------------------------
+Router 3
+---------------------------
+en
+conf t
+enable password class
+hostname R3
+line vty 0 4
+password cisco
+logging synchronous 
+login
+line con 0
+password cisco
+login
+no ip domain-lookup
+banner motd #Unauthorized access is prohibited#
+
+int F0/1
+ip add 192.168.30.1 255.255.255.0
+no shut
+int s0/0/1
+ip add 10.2.2.1 255.255.255.252
+no shut
+
+exit
+router OSPF 1
+network 192.168.30.0 0.0.0.255 AREA 0
+network 192.168.30.0 0.0.0.255 AREA 0
+network 10.2.2.0 0.0.0.3 AREA 0
+
+Passive-Interface F0/1
+
+
+int lo0
+ip add 192.168.40.1 255.255.255.0
+end
+
+
+show ip ospf neighbor
+
+Enable SSH 
+---------------
+enable 
+conf t
+ip domain-name cisco.com
+crypto key generate rsa modulus 1024
+line vty 0 4 
+login local
+transport input ssh
+
+Enable web access
+---------------
+enable
+conf t
+ip http server
+ip http authentication local
+username admin privilege 15 secret class
+
+Configure ACL Policy on R3
+-------------------
+ip access-list extended WEB-POLICY
+permit tcp 192.168.30.0 0.0.0.255 host 10.1.1.1 eq 80
+permit tcp 192.168.30.0 0.0.0.255 209.165.200.224 0.0.0.31 eq 80
+
+Apply ACL to Interface
+---------------------
+interface s0/0/1
+ip access-group WEB-POLICY out
+
+Verify ACL 
+-----------
+show ip interface s0/0/1
+
+Modify ACL Web Policy  on R3
+-----------------------------
+ip access-list extended WEB-POLICY
+30 permit ip 192.168.30.0 0.0.0.255 192.168.10.0 0.0.0.255
+end
+
+show access-lists
+
+
+---------------------------
+ISP Router 
+---------------------------
+en
+conf t
+enable password class
+hostname ISP
+line vty 0 4
+password cisco
+logging synchronous 
+login
+line con 0
+password cisco
+login
+no ip domain-lookup
+banner motd #Unauthorized access is prohibited#
+
+int S0/1/0
+ip add 10.1.1.2 255.255.255.252
+no shut
+int s0/1/1
+ip add 10.2.2.2 255.255.255.252
+clock rate 128000
+no shut
+
+exit
+router OSPF 1
+network 10.1.1.0 0.0.0.3 AREA 0
+network 10.2.2.0 0.0.0.3 AREA 0
+network 209.165.200.0 0.0.0.31 AREA 0
+network 209.165.201.224 0.0.0.31 AREA 0
+
+
+interface lo0
+ip add 209.165.200.225 255.255.255.224
+end
+
+interface lo1
+ip add 209.165.201.1 255.255.255.224
+end
+
+show ip ospf neighbor
+
+Enable web access
+---------------
+enable
+conf t
+ip http server
+ip http authentication local
+username admin privilege 15 secret class
