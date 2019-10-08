@@ -1,0 +1,74 @@
+!Hw 4.4.2.11
+hostname ISP
+ipv6 unicast-routing
+ipv6 router eigrp 1
+ eigrp router-id 10.1.1.1
+ no shutdown
+interface GigabitEthernet0/1
+ ip address 192.168.3.1 255.255.255.0
+ ipv6 address FE80::1 link-local
+ ipv6 address 2001:DB8:ACAD:3::1/64
+ ipv6 eigrp 1
+ no shutdown
+interface Serial0/0/0
+ ip address 10.1.1.1 255.255.255.252
+ clock rate 128000
+ ipv6 address FE80::1 link-local
+ ipv6 address 2001:DB8:ACAD:A::1/64
+ ipv6 eigrp 1
+ no shutdown
+router eigrp 1
+ network 10.1.1.0 0.0.0.3
+ network 192.168.3.0
+ no auto-summary
+end
+Router HQ
+hostname HQ
+ipv6 unicast-routing
+ipv6 router eigrp 1
+ eigrp router-id 10.1.1.2
+ no shutdown
+interface Loopback0
+ ip address 192.168.4.1 255.255.255.0
+ ipv6 address FE80::1 link-local
+ ipv6 address 2001:DB8:ACAD:4::1/64
+ ipv6 eigrp 1
+interface GigabitEthernet0/1
+ ip address 192.168.1.1 255.255.255.0
+ ipv6 address FE80::1 link-local
+ ipv6 address 2001:DB8:ACAD:1::1/64
+ ip access-group 101 out
+ip access-group 102 in
+ipv6 eigrp 1
+ no shutdown
+interface Serial0/0/1
+ ip address 10.1.1.2 255.255.255.252
+ ip access-group 121 in
+ ipv6 address FE80::2 link-local
+ ipv6 address 2001:DB8:ACAD:A::2/64
+ ipv6 eigrp 1
+ipv6 traffic-filter NO-ICMP out
+ no shutdown
+router eigrp 1
+ network 10.1.1.0 0.0.0.3
+ network 192.168.1.0
+ network 192.168.4.0
+ no auto-summary
+ip http server
+access-list 101 permit ip 192.168.11.0 0.0.0.255 any
+access-list 101 deny ip any any
+access-list 102 permit tcp any any established
+access-list 102 permit icmp any any echo-reply
+access-list 102 permit icmp any any unreachable
+access-list 102 deny ip any any
+access-list 121 permit tcp any host 192.168.4.1 eq 89
+access-list 121 deny icmp any host 192.168.4.11
+access-list 121 deny ip 192.168.1.0 0.0.0.255 any
+access-list 121 deny ip 127.0.0.0 0.255.255.255 any
+access-list 121 deny ip 224.0.0.0 31.255.255.255 any
+access-list 121 permit ip any any
+access-list 121 deny ip any any
+ipv6 access-list NO-ICMP
+ deny icmp any any echo-request
+ permit ipv6 any any
+end
